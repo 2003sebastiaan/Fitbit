@@ -71,9 +71,20 @@ X = pd.get_dummies(X, drop_first=True)  # Convert categorical variable into dumm
 X = sm.add_constant(X)  # Adds a constant term to the predictor
 y = df['Calories']
 
+# Convert to numeric types
+X = X.apply(pd.to_numeric, errors='coerce')
+y = pd.to_numeric(y, errors='coerce')
+
+# Ensure all dummy variables are integers
+X = X.astype(int)
+
 # Ensure there are no missing values
 X = X.dropna()
 y = y[X.index]
+
+# Debugging: Check the data types of X and y
+print(X.dtypes)
+print(y.dtypes)
 
 # Fit the model
 model = sm.OLS(y, X).fit()
