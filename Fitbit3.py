@@ -10,3 +10,5 @@ cursor.execute(query, (var,))
 
 rows = cursor.fetchall()
 df = pd.DataFrame(rows, columns=[x[0] for x in cursor.description])
+
+
