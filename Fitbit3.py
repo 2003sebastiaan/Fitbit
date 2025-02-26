@@ -127,8 +127,3 @@ rows = cursor.fetchall()
 df = pd.DataFrame(rows, columns=['County', 'TotalDeaths', 'TotalCases'])
 
 print(df)
-
-
-
-#### sssss
-
