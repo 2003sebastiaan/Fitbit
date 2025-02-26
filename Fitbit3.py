@@ -128,7 +128,4 @@ df = pd.DataFrame(rows, columns=['County', 'TotalDeaths', 'TotalCases'])
 
 print(df)
 
-
-
-#### sssss
-
+#probeer Odin
