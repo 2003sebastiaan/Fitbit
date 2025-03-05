@@ -34,96 +34,25 @@ result_df = df[['Id', 'Class']]
 
 print(result_df)
 
-# Connect to the covid database
-connection = sqlite3.connect("covid_database.db")
-cursor = connection.cursor()
-
-# Example query to get confirmed cases, deaths, and recovered cases per country
-country = 'USA'
-query = f"""
-SELECT date, confirmed, deaths, recovered, active
-FROM country_wise
-WHERE country = '{country}'
+sleep_query = """
+SELECT Id, logId, SUM(duration) as total_sleep_duration
+FROM minute_sleep
+GROUP BY Id, logId
 """
-cursor.execute(query)
-rows = cursor.fetchall()
-df = pd.DataFrame(rows, columns=['Date', 'Confirmed', 'Deaths', 'Recovered', 'Active'])
+cursor.execute(sleep_query)
+sleep_rows = cursor.fetchall()
+sleep_df = pd.DataFrame(sleep_rows, columns=['Id', 'logId', 'total_sleep_duration'])
+print(sleep_df)
 
-# Plot the data
-df['Date'] = pd.to_datetime(df['Date'])
-df.set_index('Date', inplace=True)
-df[['Confirmed', 'Deaths', 'Recovered', 'Active']].plot(figsize=(10, 5))
-plt.title(f'COVID-19 Data for {country}')
-plt.ylabel('Count')
-plt.xlabel('Date')
-plt.show()
-
-# Calculate death rate µ(t)
-df['DeltaDeaths'] = df['Deaths'].diff().fillna(0)
-df['DeathRate'] = df['DeltaDeaths'] / df['Active']
-
-# Assume average recovery time is 4.5 days
-recovery_time = 4.5
-df['Gamma'] = 1 / recovery_time
-
-# Calculate α(t) and β(t)
-df['Alpha'] = (df['Confirmed'].diff().fillna(0) - df['Gamma'] * df['Recovered']) / df['Active']
-df['Beta'] = df['Alpha'] / df['Active']
-
-print(df[['DeathRate', 'Gamma', 'Alpha', 'Beta']])
-
-# Trajectory of R0-value
-def calculate_r0(df):
-    df['R0'] = df['Beta'] / df['Gamma']
-    return df['R0']
-
-df['R0'] = calculate_r0(df)
-df['R0'].plot(figsize=(10, 5))
-plt.title(f'R0 Trajectory for {country}')
-plt.ylabel('R0')
-plt.xlabel('Date')
-plt.show()
-
-# Map of Europe
-query = """
-SELECT country, active, population
-FROM worldometer_data
-WHERE continent = 'Europe'
+active_minutes_query = """
+SELECT Id, date, SUM(very_active_minutes + fairly_active_minutes + lightly_active_minutes) as total_active_minutes
+FROM daily_activity
+GROUP BY Id, date
 """
-cursor.execute(query)
-rows = cursor.fetchall()
-df = pd.DataFrame(rows, columns=['Country', 'ActiveCases', 'Population'])
-df['ActiveCasesPerCapita'] = df['ActiveCases'] / df['Population']
+cursor.execute(active_minutes_query)
+active_minutes_rows = cursor.fetchall()
+active_minutes_df = pd.DataFrame(active_minutes_rows, columns=['Id', 'date', 'total_active_minutes'])
 
-fig = px.choropleth(df, locations='Country', locationmode='country names', color='ActiveCasesPerCapita', scope='europe', title='Active Cases per Capita in Europe')
-fig.show()
-
-# Compare Death Rate Over Continents
-query = """
-SELECT continent, AVG(deaths/active) as avg_death_rate
-FROM country_wise
-GROUP BY continent
-"""
-cursor.execute(query)
-rows = cursor.fetchall()
-df = pd.DataFrame(rows, columns=['Continent', 'AvgDeathRate'])
-
-df.plot(kind='bar', x='Continent', y='AvgDeathRate', legend=False)
-plt.title('Average Death Rate by Continent')
-plt.ylabel('Death Rate')
-plt.xlabel('Continent')
-plt.show()
-
-# Top 5 US Counties
-query = """
-SELECT county, SUM(deaths) as total_deaths, SUM(confirmed) as total_cases
-FROM usa_county_wise
-GROUP BY county
-ORDER BY total_deaths DESC
-LIMIT 5
-"""
-cursor.execute(query)
-rows = cursor.fetchall()
-df = pd.DataFrame(rows, columns=['County', 'TotalDeaths', 'TotalCases'])
-
-print(df)
+# Merge sleep duration and active minutes dataframes
+merged_df = pd.merge(sleep_df, active_minutes_df, on=['Id', 'date'])
+print(merged_df)
