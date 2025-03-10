@@ -17,7 +17,6 @@ FROM daily_activity
 GROUP BY Id
 """
 cursor.execute(query)
-
 rows = cursor.fetchall()
 df = pd.DataFrame(rows, columns=['Id', 'activity_count'])
 
@@ -46,7 +45,7 @@ cursor.execute(sleep_query)
 sleep_rows = cursor.fetchall()
 sleep_df = pd.DataFrame(sleep_rows, columns=['Id', 'logId', 'ActivityDate', 'total_sleep_duration'])
 sleep_df['ActivityDate'] = pd.to_datetime(sleep_df['ActivityDate']).dt.date
-print(sleep_df[0:10])
+#print(sleep_df[0:10])
 
 # Point 2: perform a regression of active minutes against minutes of sleep
 active_minutes_query = """
@@ -58,7 +57,7 @@ cursor.execute(active_minutes_query)
 active_minutes_rows = cursor.fetchall()
 active_minutes_df = pd.DataFrame(active_minutes_rows, columns=['Id', 'ActivityDate', 'total_active_minutes'])
 active_minutes_df['ActivityDate'] = pd.to_datetime(active_minutes_df['ActivityDate']).dt.date
-print(active_minutes_df.head())
+#print(active_minutes_df.head())
 
 merged_df = pd.merge(sleep_df, active_minutes_df, on=['Id'])
 #merged_df = pd.merge(sleep_df, active_minutes_df, on=['Id', 'ActivityDate'])
@@ -195,11 +194,123 @@ sleep_summary.rename(columns={'SleepMinutes': 'AverageSleepMinutes'}, inplace=Tr
 
 print(sleep_summary)
 
+summary_df = pd.merge(steps_summary, calories_summary, on='TimeBlock')
+summary_df = pd.merge(summary_df, sleep_summary, on='TimeBlock')
 
-
-# # Visualize the results in a barplot
-# summary_df.plot(x='TimeBlock', y=['AverageSteps', 'AverageCalories', 'AverageSleepMinutes'], kind='bar')
+# # Plot average steps per 4-hour block
+# plt.figure(figsize=(10, 6))
+# plt.bar(summary_df['TimeBlock'], summary_df['AverageSteps'], color='blue')
 # plt.xlabel('Time Block')
-# plt.ylabel('Average')
-# plt.title('Average Steps, Calories, and Sleep Minutes per 4-Hour Block')
+# plt.ylabel('Average Steps')
+# plt.title('Average Steps per 4-Hour Block')
 # plt.show()
+
+# # Plot average calories burnt per 4-hour block
+# plt.figure(figsize=(10, 6))
+# plt.bar(summary_df['TimeBlock'], summary_df['AverageCalories'], color='green')
+# plt.xlabel('Time Block')
+# plt.ylabel('Average Calories Burnt')
+# plt.title('Average Calories Burnt per 4-Hour Block')
+# plt.show()
+
+# # Plot average sleep minutes per 4-hour block
+# plt.figure(figsize=(10, 6))
+# plt.bar(summary_df['TimeBlock'], summary_df['AverageSleepMinutes'], color='red')
+# plt.xlabel('Time Block')
+# plt.ylabel('Average Sleep Minutes')
+# plt.title('Average Sleep Minutes per 4-Hour Block')
+# plt.show()
+
+
+
+# Point 5: heart rate and intensity data
+
+def plot_heartrate_intensity(user_id):
+    heart_rate_query = """
+    SELECT Id, Time as ActivityHour, Value as HeartRate
+    FROM heart_rate
+    WHERE Id = ?
+    """
+    cursor.execute(heart_rate_query, (user_id,))
+    heart_rate_rows = cursor.fetchall()
+    heart_rate_df = pd.DataFrame(heart_rate_rows, columns=['Id', 'ActivityHour', 'HeartRate'])
+    heart_rate_df['ActivityHour'] = pd.to_datetime(heart_rate_df['ActivityHour'], format='%m/%d/%Y %I:%M:%S %p')
+
+    intensity_query = """
+    SELECT Id, ActivityHour, TotalIntensity
+    FROM hourly_intensity
+    WHERE Id = ?
+    """
+    cursor.execute(intensity_query, (user_id,))
+    intensity_rows = cursor.fetchall()
+    intensity_df = pd.DataFrame(intensity_rows, columns=['Id', 'ActivityHour', 'TotalIntensity'])
+    intensity_df['ActivityHour'] = pd.to_datetime(intensity_df['ActivityHour'], format='%m/%d/%Y %I:%M:%S %p')
+    
+    print("Heart Rate DataFrame:")
+    print(heart_rate_df.head())
+    print("Intensity DataFrame:")
+    print(intensity_df.head())
+    
+    
+    merged_df = pd.merge(heart_rate_df, intensity_df, on=['Id', 'ActivityHour'])
+
+    print("Merged DataFrame:")
+    print(merged_df.head())
+
+
+
+    plt.figure(figsize=(12, 6))
+    plt.plot(merged_df['ActivityHour'], merged_df['HeartRate'], color='blue', label='Heart Rate')
+    plt.plot(merged_df['ActivityHour'], merged_df['TotalIntensity'], color='red', label='Total Intensity')
+    
+    plt.xlabel('Time')
+    plt.ylabel('Value')
+    plt.title(f'Heart Rate vs Total Intensity for User {user_id}')
+    plt.legend()
+    plt.xticks(rotation=45)
+    plt.show()    
+    
+# user_id = 2026352035.0
+# plot_heartrate_intensity(user_id)
+
+
+heart_rate_query = """
+SELECT * 
+FROM heart_rate
+"""
+cursor.execute("PRAGMA table_info(heart_rate)")
+heart_rate_info = cursor.fetchall()
+print("heart_rate table structure:")
+for column in heart_rate_info:
+    print(column)
+
+intensity_query = """
+SELECT *
+FROM hourly_intensity
+"""
+cursor.execute("PRAGMA table_info(hourly_intensity)")
+hourly_intensity_info = cursor.fetchall()
+print("hourly_intensity table structure:")
+for column in hourly_intensity_info:
+    print(column)
+
+# cursor.execute("SELECT DISTINCT Id FROM heart_rate")
+# print("\nIds in heart_rate:", cursor.fetchall())
+
+# # Check some timestamps from heart_rate
+# cursor.execute("SELECT Time FROM heart_rate LIMIT 5")
+# print("\nSample timestamps from heart_rate:", cursor.fetchall())
+
+# # Find a valid user_id that exists in both tables
+# cursor.execute("SELECT DISTINCT Id FROM heart_rate INTERSECT SELECT DISTINCT Id FROM hourly_intensity")
+# valid_ids = cursor.fetchall()
+# print("\nValid Ids in both tables:", valid_ids)
+
+# Try a different user_id if needed
+# if valid_ids:
+#     user_id = valid_ids[0][0]  # Use the first valid Id
+#     print("\nUsing user_id:", user_id)
+
+# Now call the function
+user_id = 2026352035.0
+plot_heartrate_intensity(user_id)
