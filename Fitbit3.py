@@ -298,28 +298,35 @@ cursor = connection.cursor()
 
 #point 6: 
 
-import requests
-import pandas as pd
 
-API_KEY = "62BCS2C28HT42F6TU7JB7CPZD"
-location = "Chicago"
-start_date = "2023-03-05"  # Start of the period
-end_date = "2024-03-05" 
+weather_data = pd.read_csv("Chicago_weather.csv")
+#print(weather_data.columns)
 
-#url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/Chicago/2024-03-01?unitGroup=metric&key={API_KEY}"
-url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/{location}/{start_date}?unitGroup=metric&key={API_KEY}"
+columns = ["name", "datetime", "temp", "feelslike", "precip"]
+weather_subset = weather_data[columns]
+print(weather_subset.head())
 
-response = requests.get(url)
+active_minutes_df['ActivityDate'] = pd.to_datetime(active_minutes_df['ActivityDate']).dt.date 
 
-if response.status_code == 200:
-    print("✅ API key works! Here's a sample of the data:")
-    data = response.json()
-    
-    weather_data = pd.DataFrame(data["days"], columns=["datetime", "temp", "precip", "humidity", "windspeed"])
-    
-    # Display first few rows
-    print(weather_data.head())
-else:
-    print("❌ Error:", response.text)
+columns_temp = ["datetime", "temp"]
+weather_temp = weather_data[columns_temp]
+weather_temp['datetime'] = pd.to_datetime(weather_temp['datetime']).dt.date
+print(weather_temp.head())
+
+merged_df = pd.merge(active_minutes_df, weather_subset, left_on="ActivityDate", right_on="datetime")
+print(merged_df.head())
+# # Linear regression model
+# X = merged_df["temp"].values.reshape(-1, 1)
+# y = merged_df["total_active_minutes"].values
+# model = LinearRegression().fit(X, y)
+
+# # Scatterplot with regression line
+# plt.figure(figsize=(8, 5))
+# sns.scatterplot(x=merged_df["temp"], y=merged_df["total_active_minutes"], color="blue", alpha=0.6)
+# plt.plot(merged_df["temp"], model.predict(X), color="red", linewidth=2)
+# plt.xlabel("Temperature (°C)")
+# plt.ylabel("Total Active Minutes")
+# plt.title("Temperature vs. Activity")
+# plt.show()
     
     
