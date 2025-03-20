@@ -17,13 +17,13 @@ print("Tables in the database:", table_names)
 # ===== DATA COLLECTION =====
 # Get core activity data first
 daily_activity_df = pd.read_sql("SELECT * FROM daily_activity", connection)
-daily_activity_df['ActivityDate'] = pd.to_datetime(daily_activity_df['ActivityDate'])
+daily_activity_df['ActivityDate'] = pd.to_datetime(daily_activity_df['ActivityDate']).dt.date
 
 
 # ===== WEIGHT DATA PROCESSING =====
 weight_query = "SELECT * FROM weight_log"
 weight_log_df = pd.read_sql(weight_query, connection)
-weight_log_df['Date'] = pd.to_datetime(weight_log_df['Date'])
+weight_log_df['Date'] = pd.to_datetime(weight_log_df['Date'], format='%m/%d/%Y %I:%M:%S %p').dt.date
 
 # Rename 'Date' column to 'ActivityDate' for consistent merging
 weight_log_df.rename(columns={'Date': 'ActivityDate'}, inplace=True)
@@ -53,7 +53,7 @@ FROM minute_sleep
 GROUP BY Id, DATE(date)
 """
 sleep_df = pd.read_sql(sleep_query, connection)
-sleep_df['ActivityDate'] = pd.to_datetime(sleep_df['ActivityDate'])
+sleep_df['ActivityDate'] = pd.to_datetime(sleep_df['ActivityDate']).dt.date
 
 # ===== HEART RATE DATA =====
 resting_hr_query = """
@@ -66,11 +66,14 @@ WHERE Value > 40  -- Remove unrealistic values
 GROUP BY Id, DATE(Time)
 """
 resting_hr_df = pd.read_sql(resting_hr_query, connection)
-resting_hr_df['ActivityDate'] = pd.to_datetime(resting_hr_df['ActivityDate'])
+resting_hr_df['ActivityDate'] = pd.to_datetime(resting_hr_df['ActivityDate']).dt.date
 
 # ===== DATA MERGING STRATEGY =====
 # Start with daily activity as base
 merged_df = daily_activity_df.copy()
+
+for df in [merged_df, weight_log_df, sleep_df, resting_hr_df]:
+    df['ActivityDate'] = pd.to_datetime(df['ActivityDate'])
 
 # Merge other datasets with indicator flags
 for df, name in [(sleep_df, 'sleep'), 
@@ -104,7 +107,7 @@ keep_columns = [
     'Id', 'ActivityDate', 'TotalSteps', 'Calories', 'VeryActiveMinutes',
     'FairlyActiveMinutes', 'LightlyActiveMinutes', 'SedentaryMinutes',
     'TotalMinutesAsleep', 'TotalTimeInBed', 'SleepEfficiency',
-    'NewWeightKg', 'BMI', 'RestingHeartRate'
+    'NewWeightKg', 'BMI', 'RestingHeartRate', 'has_weight', 'has_sleep', 'has_heart_rate'
 ]
 merged_df = merged_df[keep_columns].rename(columns={'ActivityDate': 'Date'})
 
@@ -121,9 +124,9 @@ if merged_df.empty:
     exit()
 else:
     print(f"\nAnalyzing {len(merged_df)} records with:")
-    print(f"- {merged_df['has_weight'].mean():.1%} with weight data")
-    print(f"- {merged_df['has_sleep'].mean():.1%} with sleep data")
-    print(f"- {merged_df['has_heart_rate'].mean():.1%} with heart rate data")
+    print(f"- {(merged_df['has_weight'] == 'both').mean():.1%} with weight data")
+    print(f"- {(merged_df['has_sleep'] == 'both').mean():.1%} with sleep data")
+    print(f"- {(merged_df['has_heart_rate'] == 'both').mean():.1%} with heart rate data")
 
 # Statistical summary
 stats = merged_df.groupby('Id').agg({
