@@ -28,14 +28,32 @@ GROUP BY Id, DATE(date)
 """
 sleep_df = pd.read_sql(sleep_query, connection)
 sleep_df['Date'] = pd.to_datetime(sleep_df['Date'])
+sleep_df['Id'] = sleep_df['Id'].astype(float) 
+
+if sleep_df.empty:
+    st.error("⚠️ No sleep records found in the database!")
+else:
+    st.success(f"Loaded {len(sleep_df)} sleep records")
+    print("First sleep date:", sleep_df['Date'].min())
+    print("Last sleep date:", sleep_df['Date'].max())
 
 # Activity data
 activity_df = pd.read_sql("SELECT * FROM daily_activity", connection)
 activity_df['Date'] = pd.to_datetime(activity_df['ActivityDate'])
 activity_df = activity_df.drop('ActivityDate', axis=1)
 
+
 # Merge data
 merged_df = activity_df.merge(sleep_df, on=['Id', 'Date'], how='left')
+
+merged_df['TotalMinutesAsleep'] = merged_df['TotalMinutesAsleep'].fillna(0)
+merged_df['TotalTimeInBed'] = merged_df['TotalTimeInBed'].fillna(1)  # Prevent division by zero
+
+# Now calculate sleep efficiency
+merged_df['SleepEfficiency'] = (
+    merged_df['TotalMinutesAsleep'] / 
+    merged_df['TotalTimeInBed']
+).clip(0, 1)
 
 # Data cleaning
 merged_df['TotalTimeInBed'] = pd.to_numeric(merged_df['TotalTimeInBed'], errors='coerce').fillna(1)
@@ -132,7 +150,7 @@ with tab1:
         threshold_df = pd.DataFrame({
             'User Class': ['Light', 'Moderate', 'Heavy'],
             'Minimum Days': [1, 11, 16],
-            'Maximum Days': [10, 15, 'No limit']
+            'Maximum Days': [10, 15, 9999]
         })
         st.dataframe(threshold_df, hide_index=True, use_container_width=True)
 
