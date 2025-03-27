@@ -202,7 +202,7 @@ individual_sleep = minute_sleep_df.groupby(['Id', 'ActivityDate', 'TimeBlock'])[
 sleep_summary = individual_sleep.groupby('TimeBlock')['SleepMinutes'].mean().reset_index()
 sleep_summary.rename(columns={'SleepMinutes': 'AverageSleepMinutes'}, inplace=True)
 
-#print(sleep_summary)
+print(sleep_summary)
 
 summary_df = pd.merge(steps_summary, calories_summary, on='TimeBlock')
 summary_df = pd.merge(summary_df, sleep_summary, on='TimeBlock')
@@ -295,8 +295,7 @@ user_id = 2022484408
 
 
 #point 6: 
-weather_data = pd.read_csv("Chicago_weather.csv")
-#test which colummn are in the weather data
+weather_data = pd.read_csv("Chicago_weather.csv", header=0)
 print(weather_data.columns)
 
 def dailysteps_precipitation():
@@ -400,19 +399,23 @@ def sedentaryminutes_windspeed():
     columns_weather = ["datetime", "windspeed"]
     weather_data_wind = weather_data[columns_weather].copy()
     weather_data_wind['datetime'] = pd.to_datetime(weather_data_wind['datetime']).dt.date 
-
+    print(weather_data_wind.head(15))
+    
     daily_activity_query = """
-    SELECT Id, ActivityDate, SedentaryMinutes
+    SELECT Id, ActivityDate as datetime, SedentaryMinutes
     FROM daily_activity
     """
+    
     cursor.execute(daily_activity_query)
     daily_activity_rows = cursor.fetchall()
     daily_activity_df = pd.DataFrame(daily_activity_rows, columns=['Id', 'ActivityDate', 'SedentaryMinutes'])
-
+    print(daily_activity_df.head(15))
+    
     daily_activity_df["ActivityDate"] = pd.to_datetime(daily_activity_df["ActivityDate"]).dt.date
-    daily_sedentary = daily_activity_df.groupby("ActivityDate", as_index=False)["SedentaryMinutes"].sum()
        
-    merged_df = pd.merge(daily_sedentary, weather_data_wind, left_on="ActivityDate", right_on="datetime", how="left")
+    merged_df = pd.merge(daily_activity_df, weather_data_wind, left_on="ActivityDate", right_on="datetime", how="left")
+    print(merged_df.head(50))
+
     return merged_df
 
 def plot_sedentary_vs_windspeed(merged_df):
@@ -438,8 +441,8 @@ def plot_sedentary_vs_windspeed(merged_df):
     )
     fig.show()
 
-#sedentaryminutes_vs_windspeed = sedentaryminutes_windspeed()
-#plot_sedentary_vs_windspeed(sedentaryminutes_vs_windspeed)
+sedentaryminutes_vs_windspeed = sedentaryminutes_windspeed()
+plot_sedentary_vs_windspeed(sedentaryminutes_vs_windspeed)
 
 
 def sedentaryminutes_temperature():
@@ -487,8 +490,8 @@ def plot_sedentary_vs_temp(merged_df):
     )
     fig.show()
 
-sedentaryminutes_vs_temp = sedentaryminutes_temperature()
-plot_sedentary_vs_temp(sedentaryminutes_vs_temp)
+#sedentaryminutes_vs_temp = sedentaryminutes_temperature()
+#plot_sedentary_vs_temp(sedentaryminutes_vs_temp)
 
     
 # temp vs total intensity
